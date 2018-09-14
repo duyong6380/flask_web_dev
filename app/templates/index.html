@@ -12,10 +12,11 @@
 			Stranger
 		{% endif %}!
 	</h1>
-    {% if not known %}
-    <p>Pleased to meet you!</p>
-    {% else %}
-    <p>Happy to see you again!</p>
-    {% endif %}
 </div>
+<div>
+        {% if current_user.can(4) %}
+        {{ wtf.quick_form(form) }}
+        {% endif %}
+</div>
+{% include '_posts.html' %}
 {% endblock %}
