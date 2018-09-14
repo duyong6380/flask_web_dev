@@ -1,6 +1,6 @@
 from flask import render_template,request,flash,redirect,url_for
 from . import auth
-from .forms import LoginForm,RegistrationForm
+from .forms import LoginForm,RegistrationForm,passwdChangeForm,passwdSetForm,PasswordResetForm
 from ..models import User
 from flask_login import login_user,logout_user, login_required,current_user
 from .. import db
@@ -17,6 +17,51 @@ def login():
 		flash('Invalid username or password.')
 	return render_template('auth/login.html',form = form)
 
+@auth.route('/change_passwd', methods=['GET', 'POST'])
+@login_required
+def change_passwd():
+	form = passwdChangeForm()
+	if form.validate_on_submit():
+		if current_user.verify_password(form.old_password.data):
+			current_user.password = form.password.data
+			db.session.add(current_user)
+			db.session.commit()
+			flash('Your password has been updated.')
+			return redirect(url_for('main.index'))
+		else:
+			flask("输入密码无效")
+	return render_template("auth/change_password.html", form=form)
+
+@auth.route('/passwd_reset', methods=['GET', 'POST'])
+def password_reset():
+	form = passwdSetForm()
+	if form.validate_on_submit():
+		user = User.query.filter_by(email=form.email.data).first()
+		if user is not None:
+			token = user.generate_reset_token()
+			send_email(user.email, 'password reset',
+			'auth/email/reset_password', user=user, token=token)
+			flash('A password reset email has been sent to you by email.')
+			return redirect(url_for('auth.login'))
+		else:
+			flask("输入邮箱地址不存在")
+	return render_template('auth/passwd_reset.html',form = form)
+
+
+
+@auth.route('/passwd_reset/<token>', methods=['GET', 'POST'])
+def password_reset_token(token):
+    if not current_user.is_anonymous:
+        return redirect(url_for('main.index'))
+    form = PasswordResetForm()
+    if form.validate_on_submit():
+        if User.reset_password(token, form.password.data):
+            db.session.commit()
+            flash('Your password has been updated.')
+            return redirect(url_for('auth.login'))
+        else:
+            return redirect(url_for('main.index'))
+    return render_template('auth/reset_password.html', form=form)
 
 
 @auth.route('/logout')
@@ -42,6 +87,13 @@ def register():
 		return redirect(url_for('main.index'))
 	return render_template('auth/register.html',form = form)
 
+@auth.route('/confirm')
+@login_required
+def resend_confirmation():
+	token = current_user.generate_confirmation_token()
+	send_email(current_user.email, 'Confirm Your Account','auth/email/confirm', user=current_user, token=token)
+	flash('A new confirmation email has been sent to you by email.')
+	return redirect(url_for('main.index'))
 
 @auth.route('/confirm/<token>')
 @login_required
@@ -53,4 +105,22 @@ def confirm(token):
 	else:
 		flash('The confirmation link is invalid or has expired.')
 	return redirect(url_for('main.index'))
+
+@auth.route('/unconfirmed')
+def unconfirmed():
+	if current_user.is_anonymous or current_user.confirmed:
+		return redirect(url_for('main.index'))
+	return render_template('auth/unconfirmed.html')
+
+@auth.before_app_request
+def before_request():
+	if current_user.is_authenticated \
+			and not current_user.confirmed \
+			and request.endpoint  and request.endpoint[:5] != 'auth.' and request.endpoint != 'static':
+		return redirect(url_for('auth.unconfirmed'))
+
+
+
+
+
 

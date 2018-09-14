@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}Flasky{% endblock %}
+
+{% block page_content %}
+<div class="page-header">
+    <h1>Hello,{{ current_user.username }},
+	</h1>
+	<h2>你还没有认证你的账号</h2>
+    <h4>
+    	你访问站点之前，需要访问验证的你的账号；进入你的邮箱，查看收件箱，你应该接收到带有认证链接的邮件。
+    </h4>
+    <h3>
+    	需要再次发送认证链接? <a href="{{ url_for('auth.resend_confirmation') }}">点击这儿</a>
+    </h3>
+</div>
+
+{% endblock %}
